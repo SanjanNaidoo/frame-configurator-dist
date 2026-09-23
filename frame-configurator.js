@@ -563,6 +563,44 @@ const SHOP_CONTACT = 'Please call us on 011 465 8096, or WhatsApp +27 83 299 420
 const onlineOnly = (list = []) => list.filter((x) => x.showOnline !== false);
 
 /**
+ * Wix rebuilds a custom element whenever page code sets an attribute on it, so
+ * anything held on the instance is thrown away mid-order: the customer's photo,
+ * their frame, their crop. Keeping it in module scope means a rebuilt element
+ * carries on where the last one left off. The File and its object URL survive
+ * here too, because the script itself is only loaded once per page.
+ */
+let sessionState = null;
+
+function freshState() {
+  return {
+    lane: null,            // 'digital-upload' | 'own-print' | 'document'
+    printedByUs: false,
+    file: null,
+    pixels: null,          // { width, height }
+    imageUrl: null,
+    sizeId: null,
+    artWidthMm: 210,
+    artHeightMm: 297,
+    mouldingCode: null,
+    matStyle: 'single',
+    mat1Code: null,
+    mat2Code: null,
+    matBorderSidesMm: 60,
+    bottomWeighted: false,
+    glazingCode: null,
+    mountingId: null,
+    printPaperCode: null,
+    deliveryId: 'collect',
+    // Crop is stored as a zoom factor plus a centre point in normalised source
+    // coordinates, not as a pixel rectangle. That way it survives a change of
+    // print size — the frame's aspect changes, the customer's intent doesn't.
+    cropZoom: 1,
+    cropCenter: { u: 0.5, v: 0.5 },
+    submitting: false,
+  };
+}
+
+/**
  * Rate-card text goes into innerHTML. It's the shop's own data, but once staff
  * edit it in the Wix CMS it's typed by hand, so escape it like any other input.
  */
@@ -608,32 +646,7 @@ function mountConfigurator(host, root) {
   let rates = null;
   let pendingLane = null;   // a lane asked for before the rate card arrived
 
-  const state = {
-    lane: null,            // 'digital-upload' | 'own-print' | 'document'
-    printedByUs: false,
-    file: null,
-    pixels: null,          // { width, height }
-    imageUrl: null,
-    sizeId: null,
-    artWidthMm: 210,
-    artHeightMm: 297,
-    mouldingCode: null,
-    matStyle: 'single',
-    mat1Code: null,
-    mat2Code: null,
-    matBorderSidesMm: 60,
-    bottomWeighted: false,
-    glazingCode: null,
-    mountingId: null,
-    printPaperCode: null,
-    deliveryId: 'collect',
-    // Crop is stored as a zoom factor plus a centre point in normalised source
-    // coordinates, not as a pixel rectangle. That way it survives a change of
-    // print size — the frame's aspect changes, the customer's intent doesn't.
-    cropZoom: 1,
-    cropCenter: { u: 0.5, v: 0.5 },
-    submitting: false,
-  };
+  const state = sessionState ?? (sessionState = freshState());
 
   /* ---------------------------------------------------------------- *
    * Entry points
@@ -652,9 +665,8 @@ function mountConfigurator(host, root) {
       return;
     }
 
-    const isFirst = rates === null;
     rates = next;
-    if (isFirst) applyDefaults();
+    if (!state.mouldingCode) applyDefaults();
 
     $('fc-loading').hidden = true;
     showPricingBanner(rates._meta ?? {});
@@ -664,10 +676,10 @@ function mountConfigurator(host, root) {
       const lane = pendingLane;
       pendingLane = null;
       openLane(lane);
-    } else if (isFirst) {
-      showScreen('screen-router', { scroll: false });
     } else if (state.lane) {
-      renderAll();
+      openLane(state.lane);   // rebuilt mid-order: pick the customer back up
+    } else {
+      showScreen('screen-router', { scroll: false });
     }
   }
 
@@ -776,6 +788,7 @@ function mountConfigurator(host, root) {
     $('paper-options').hidden = !lane.printedByUs;
     $('submit-result').hidden = true;
     showScreen('screen-config');   // before rendering, so the preview has a size to fit
+    if (state.file) showFileDetails(state.file);
     renderAll();
   }
 
@@ -815,6 +828,12 @@ function mountConfigurator(host, root) {
     // (computed for the photo's orientation) disagrees with the live warning.
     applySizeOrientation();
 
+    showFileDetails(file);
+    renderAll();
+  }
+
+  /** Swap the dropzone for the chosen photo's details. Also used when resuming. */
+  function showFileDetails(file) {
     $('dropzone').hidden = true;
     $('filemeta').hidden = false;
     $('thumb').src = state.imageUrl;
@@ -822,8 +841,6 @@ function mountConfigurator(host, root) {
     $('fm-dims').textContent = state.pixels
       ? `${state.pixels.width} x ${state.pixels.height} px  ·  ${(file.size / 1e6).toFixed(1)} MB`
       : `${(file.size / 1e6).toFixed(1)} MB · we'll check the resolution on our side`;
-
-    renderAll();
   }
 
   function readPixelDimensions(url) {
