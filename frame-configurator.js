@@ -99,16 +99,28 @@ function panBy(pixels, aspect, zoom, centre, dxScreen, dyScreen, displayedWidth)
 /**
  * Picframing frame configurator — pricing engine.
  *
- * Pure functions only: no DOM, no Wix APIs, no network. This file is what the
- * back-test runs against tab 7 of the intake workbook, and build.mjs copies it
+ * Mirrors how the shop already prices by hand in PriceMaster, derived from 13
+ * of their own quotes (test/fixtures/pricemaster-quotes.json):
+ *
+ *   board    = art + 2 x border          (mount border, or float border)
+ *   frame m  = board perimeter + 8 x face width
+ *
+ *   price    = frame metres x rate per m
+ *            + board m² x mount rate     (per mount board)
+ *            + board m² x glass rate     (twice over when floating: glass both sides)
+ *            + board m² x backing rate   (plain, pasted, or floating)
+ *            + a flat fitting charge
+ *            + delivery, if any
+ *            then 15% VAT, unrounded
+ *
+ * There are deliberately no separate charges for mat cutting, assembly size
+ * bands, hardware or packaging: PriceMaster doesn't have them, and adding them
+ * put us 15-40% over the shop's own invoices.
+ *
+ * Pure functions only: no DOM, no Wix APIs, no network. build.mjs copies this
  * into the Velo backend so the server can re-price requests.
  *
- * All dimensions in MILLIMETRES. All money in ZAR.
- * Rate-card figures are EXCLUDING VAT; VAT is applied once, at the end.
- *
- * Workshop rates come in two bases, because that's how the shop charges them:
- *   'frame'  a flat amount per frame (hanging hardware, corner bumpers)
- *   'm2'     per square metre of board (backing, mounting, sundries, spacers)
+ * All dimensions in MILLIMETRES. All money in ZAR, excluding VAT until the end.
  */
 
 const MM_PER_INCH = 25.4;
@@ -131,47 +143,43 @@ function geometry(spec, rates) {
   const moulding = findBy(rates.mouldings, 'code', spec.mouldingCode);
   if (!moulding) throw new Error(`Unknown moulding: ${spec.mouldingCode}`);
 
-  const hasMat = (MAT_COUNT[spec.matStyle] ?? 0) > 0;
-  const overlap = hasMat ? rules.artOverlapPerSideMm : 0;
+  const mounting = findBy(rates.labour?.mounting, 'id', spec.mountingId);
+  const matCount = MAT_COUNT[spec.matStyle] ?? 0;
 
-  const openingW = spec.artWidthMm - 2 * overlap;
-  const openingH = spec.artHeightMm - 2 * overlap;
+  // Float mounting lifts the art off the backing, which needs a border of its
+  // own when there's no mount board to provide one.
+  const borderSides = matCount > 0 ? spec.matBorderSidesMm : (mounting?.floatBorderMm ?? 0);
+  const borderBottom = matCount > 0 ? (spec.matBorderBottomMm ?? borderSides) : borderSides;
 
-  const borderSides = hasMat ? spec.matBorderSidesMm : 0;
-  const borderTop = borderSides;
-  const borderBottom = hasMat ? (spec.matBorderBottomMm ?? borderSides) : 0;
+  // The shop charges on art + 2 x border exactly. No lip, clearance or overlap
+  // deduction enters the price, however the pieces physically overlap.
+  const boardW = spec.artWidthMm + 2 * borderSides;
+  const boardH = spec.artHeightMm + borderSides + borderBottom;
 
-  const sightW = openingW + 2 * borderSides;
-  const sightH = openingH + borderTop + borderBottom;
+  // The art tucks under the mount, so the hole cut in it is smaller than the
+  // art. This only draws the preview; it never moves the price.
+  const openingW = spec.artWidthMm - 2 * (matCount > 0 ? rules.artOverlapPerSideMm : 0);
+  const openingH = spec.artHeightMm - 2 * (matCount > 0 ? rules.artOverlapPerSideMm : 0);
 
-  const boardW = sightW + 2 * moulding.rabbetLipMm;
-  const boardH = sightH + 2 * moulding.rabbetLipMm;
+  const face = moulding.faceWidthMm;
+  const outerW = boardW + 2 * face;
+  const outerH = boardH + 2 * face;
 
-  const rabbetW = boardW + rules.rabbetClearanceMm;
-  const rabbetH = boardH + rules.rabbetClearanceMm;
-
-  // A face narrower than its lip is a data problem, and the importer flags it.
-  // Either way, the outside of a frame can't be smaller than its rabbet.
-  const profileMm = Math.max(0, moulding.faceWidthMm - moulding.rabbetLipMm);
-  const outerW = rabbetW + 2 * profileMm;
-  const outerH = rabbetH + 2 * profileMm;
-
-  // Trade chop formula: each of the four mitres eats roughly one face width of
-  // stock, which is exactly the difference between the rabbet and outer
-  // perimeters. Measuring the outer perimeter therefore already accounts for
-  // the mitres; chopWasteMm is the shop's additional saw/setup allowance.
-  const mouldingLengthMm = 2 * (outerW + outerH) + rules.chopWasteMm;
+  // The trade chop formula, and exactly what PriceMaster's job cards show:
+  // each of the four mitres eats one face width at each end of a rail.
+  const mouldingLengthMm = 2 * (boardW + boardH) + 8 * face;
 
   return {
     openingW, openingH,
-    sightW, sightH,
+    sightW: boardW, sightH: boardH,   // what shows inside the frame
     boardW, boardH,
-    rabbetW, rabbetH,
     outerW, outerH,
     mouldingLengthMm,
     outerLongSideMm: Math.max(outerW, outerH),
     boardAreaM2: (boardW * boardH) / 1e6,
     moulding,
+    mounting,
+    matCount,
   };
 }
 
@@ -331,25 +339,10 @@ function maxSizeForImage(pixels, printSizes, minDpi) {
  * Price
  * ------------------------------------------------------------------ */
 
-/** A rate charged per frame, or per square metre of board. */
-function rateAmount(item, boardAreaM2) {
-  const rate = item?.rateExVat ?? 0;
-  return item?.basis === 'm2' ? rate * boardAreaM2 : rate;
-}
-
-function rateDetail(item, boardAreaM2) {
-  return item?.basis === 'm2'
-    ? `${boardAreaM2.toFixed(3)} m² at ${rand(item.rateExVat)}/m²`
-    : 'per frame';
-}
-
-/** Hanging hardware, bumpers, tape. Older rate cards kept these as flat per-frame fields. */
-function consumablesOf(labour) {
-  return labour.consumables ?? [
-    { label: 'Hanging hardware', rateExVat: labour.hangingHardwarePerFrameExVat ?? 0, basis: 'frame' },
-    { label: 'Corner bumpers', rateExVat: labour.cornerBumpersPerFrameExVat ?? 0, basis: 'frame' },
-    { label: 'Sundries', rateExVat: labour.sundriesPerFrameExVat ?? 0, basis: 'frame' },
-  ];
+/** A mount, backing or mounting rate, per square metre of board. */
+function perM2(item) {
+  // Older rate cards wrote these as { rateExVat, basis: 'm2' }.
+  return item?.ratePerM2ExVat ?? (item?.basis === 'm2' ? item.rateExVat : 0) ?? 0;
 }
 
 /**
@@ -359,62 +352,49 @@ function consumablesOf(labour) {
  */
 function computePrice(spec, rates) {
   const rules = rates.businessRules;
-  const labour = rates.labour;
+  const labour = rates.labour ?? {};
   const geo = geometry(spec, rates);
   const area = geo.boardAreaM2;
   const lines = [];
 
-  // --- Moulding -----------------------------------------------------
+  // --- Frame, by the metre ------------------------------------------
   const metres = geo.mouldingLengthMm / 1000;
   lines.push({
     group: 'Frame',
     label: geo.moulding.name,
-    detail: `${metres.toFixed(2)} m at ${rand(geo.moulding.sellPerMExVat)}/m`,
+    detail: `${metres.toFixed(3)} m at ${rand(geo.moulding.sellPerMExVat)}/m`,
     amount: metres * geo.moulding.sellPerMExVat,
   });
 
-  // --- Mat board ----------------------------------------------------
-  const matCount = MAT_COUNT[spec.matStyle] ?? 0;
-  for (let i = 0; i < matCount; i++) {
+  // --- Mount board, by the area of the board ------------------------
+  for (let i = 0; i < geo.matCount; i++) {
     const code = i === 0 ? spec.mat1Code : spec.mat2Code;
     const board = findBy(rates.matBoards, 'code', code);
     if (!board) throw new Error(`Unknown mat board: ${code}`);
-    const label = `${board.colourName}${matCount === 2 ? (i === 0 ? ' (top)' : ' (under)') : ''}`;
-
-    if (board.sellPerSheetExVat != null) {
-      lines.push({ group: 'Mat', label, detail: 'one sheet', amount: board.sellPerSheetExVat });
-    } else {
-      const sheetAreaM2 = (board.sheetWidthMm * board.sheetHeightMm) / 1e6;
-      const minFraction = board.minSheetFraction ?? rules.matMinSheetFraction ?? 0;
-      const chargeableM2 = Math.max(area, sheetAreaM2 * minFraction);
-      lines.push({
-        group: 'Mat',
-        label,
-        detail: `${chargeableM2.toFixed(3)} m² at ${rand(board.sellPerM2ExVat)}/m²`,
-        amount: chargeableM2 * board.sellPerM2ExVat,
-      });
-    }
-  }
-  if (matCount > 0) {
-    const cut = labour.matCuttingFirstOpeningExVat + (matCount - 1) * labour.matCuttingExtraOpeningExVat;
-    lines.push({ group: 'Mat', label: 'Mat cutting', detail: `${matCount} opening${matCount > 1 ? 's' : ''}`, amount: cut });
+    const rate = board.sellPerM2ExVat;
+    const sheetAreaM2 = (board.sheetWidthMm * board.sheetHeightMm) / 1e6;
+    const chargeableM2 = Math.max(area, sheetAreaM2 * (board.minSheetFraction ?? 0));
+    lines.push({
+      group: 'Mount',
+      label: `${board.colourName}${geo.matCount === 2 ? (i === 0 ? ' (top)' : ' (under)') : ''}`,
+      detail: `${chargeableM2.toFixed(3)} m² at ${rand(rate)}/m²`,
+      amount: chargeableM2 * rate,
+    });
   }
 
-  // --- Glazing ------------------------------------------------------
+  // --- Glass, twice over when floating ------------------------------
   const glazing = findBy(rates.glazing, 'code', spec.glazingCode);
   if (!glazing) throw new Error(`Unknown glazing: ${spec.glazingCode}`);
-  // Too big for every sheet is a validation error. Price it on the largest
-  // sheet anyway, so a back-test still has a number to compare.
   const sheet = pickGlazingVariant(glazing, geo.boardW, geo.boardH) ?? largestVariant(glazing);
-  const stockedInSizes = glazingVariants(glazing).length > 1;
+  const layers = geo.mounting?.glassLayers ?? 1;
   lines.push({
     group: 'Glazing',
     label: glazing.label,
-    detail: `${area.toFixed(3)} m² at ${rand(sheet.sellPerM2ExVat)}/m²${stockedInSizes && sheet.type ? `, ${sheet.type}` : ''}`,
-    amount: area * sheet.sellPerM2ExVat,
+    detail: `${area.toFixed(3)} m² at ${rand(sheet.sellPerM2ExVat)}/m²${layers > 1 ? ', glass both sides' : ''}`,
+    amount: area * sheet.sellPerM2ExVat * layers,
   });
 
-  // --- Printing -----------------------------------------------------
+  // --- Printing, if we're printing the photo ------------------------
   if (spec.printedByUs) {
     const paper = findBy(rates.printing, 'code', spec.printPaperCode);
     if (!paper) throw new Error(`Unknown print paper: ${spec.printPaperCode}`);
@@ -429,42 +409,25 @@ function computePrice(spec, rates) {
     });
   }
 
-  // --- Workshop -----------------------------------------------------
-  const bands = labour.assemblyBands;
-  const band = bands.find((b) => geo.outerLongSideMm <= b.maxLongSideMm) ?? bands[bands.length - 1];
-  lines.push({ group: 'Workshop', label: 'Assembly and fitting', detail: band.label, amount: band.rateExVat });
-
-  const backing = labour.backing ?? { rateExVat: labour.backingPerM2ExVat ?? 0, basis: 'm2' };
-  lines.push({ group: 'Workshop', label: 'Backing board', detail: rateDetail(backing, area), amount: rateAmount(backing, area) });
-
-  const mount = findBy(labour.mounting, 'id', spec.mountingId);
-  if (mount && rateAmount(mount, area) > 0) {
-    lines.push({ group: 'Workshop', label: mount.label, detail: rateDetail(mount, area), amount: rateAmount(mount, area) });
+  // --- Backing and mounting, by the area of the board ---------------
+  if (geo.mounting && perM2(geo.mounting) > 0) {
+    lines.push({
+      group: 'Workshop',
+      label: geo.mounting.label,
+      detail: `${area.toFixed(3)} m² at ${rand(perM2(geo.mounting))}/m²`,
+      amount: area * perM2(geo.mounting),
+    });
   }
 
-  // With no mat, or a float mount, something has to keep the glass off the art.
-  if (labour.spacer && (matCount === 0 || spec.mountingId === 'float')) {
-    lines.push({ group: 'Workshop', label: 'Spacers', detail: rateDetail(labour.spacer, area), amount: rateAmount(labour.spacer, area) });
+  // --- Fitting: the shop's flat "Extras" ----------------------------
+  if (labour.fittingExVat) {
+    lines.push({ group: 'Workshop', label: 'Fitting and hardware', detail: 'per frame', amount: labour.fittingExVat });
   }
 
-  const consumables = consumablesOf(labour);
-  lines.push({
-    group: 'Workshop',
-    label: 'Hardware and sundries',
-    detail: consumables.map((c) => c.label).join(', '),
-    amount: consumables.reduce((sum, c) => sum + rateAmount(c, area), 0),
-  });
-
-  // --- Packaging and delivery ---------------------------------------
+  // --- Delivery -----------------------------------------------------
   const delivery = findBy(rates.delivery, 'id', spec.deliveryId);
   if (delivery && delivery.rateExVat > 0) {
-    const packaging = labour.packagingPerFrameExVat ?? 0;
-    lines.push({
-      group: 'Delivery',
-      label: delivery.label,
-      detail: packaging ? `includes ${rand(packaging)} packaging` : '',
-      amount: packaging + delivery.rateExVat,
-    });
+    lines.push({ group: 'Delivery', label: delivery.label, detail: '', amount: delivery.rateExVat });
   }
 
   // --- Totals -------------------------------------------------------
@@ -712,14 +675,22 @@ function mountConfigurator(host, root) {
     el.textContent = `${message} ${SHOP_CONTACT}`;
   }
 
-  /** Development banner: the prices are either invented, or real but not yet checked. */
+  /**
+   * Development banner. Three states, in order of how ready the prices are:
+   * invented, real and back-tested but not signed off, or signed off (no banner).
+   */
   function showPricingBanner(meta) {
     const unchecked = !meta.placeholder && meta.validated === false;
     $('placeholder-banner').hidden = !(meta.placeholder || unchecked);
-    $('banner-title').textContent = meta.placeholder ? 'Placeholder pricing.' : 'Prices not yet checked.';
+    $('banner-title').textContent = meta.placeholder ? 'Placeholder pricing.' : 'Prices awaiting sign-off.';
+
+    const back = meta.backtest;
+    const evidence = back
+      ? `They match ${back.priceMasterQuotes.exact} of ${back.priceMasterQuotes.total} of the shop's own PriceMaster quotes and all ${back.invoices.total} invoices we have, to the cent. `
+      : '';
     $('banner-body').textContent = meta.placeholder
       ? 'These are invented numbers so the tool has something to show.'
-      : "These are the shop's real rates, but the formula hasn't been checked against enough past invoices. Don't show customers yet.";
+      : `These are the shop's real rates. ${evidence}The shop still has to sign them off, so card payment is switched off and this goes out as a quote request.`;
   }
 
   function applyDefaults() {
