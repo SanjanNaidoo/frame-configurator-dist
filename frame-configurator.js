@@ -3,7 +3,7 @@
 (() => {
 'use strict';
 const STYLES = "/* Picframing configurator — warm, print-shop feel. Framebridge-adjacent, not a clone.\n   Lives inside the element's Shadow DOM: nothing here reaches the Wix page, and\n   the page's selectors can't reach in. Inherited properties (font, colour) still\n   flow through the host, which is why .fc sets all of them explicitly. */\n\n:host {\n  display: block;\n  --cream:      #FDF6EF;\n  --cream-deep: #F5EADF;\n  --ink:        #1E1B18;\n  --ink-soft:   #55504A;\n  --ink-faint:  #8B837A;\n  --rule:       #E2D5C6;\n  --accent:     #3F5E77;\n  --accent-ink: #2C4356;\n  --warn-bg:    #FBF0DC;\n  --warn-ink:   #7A5A17;\n  --err-bg:     #F9E7E4;\n  --err-ink:    #8A3A2E;\n  --ok-bg:      #E6EFE4;\n  --ok-ink:     #2E5A2B;\n  --serif: \"Iowan Old Style\", \"Palatino Linotype\", Palatino, Georgia, serif;\n  --sans: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Inter, Helvetica, Arial, sans-serif;\n}\n\n*, *::before, *::after { box-sizing: border-box; }\n/* Must beat the display:flex/grid rules below, or hidden panels still show. */\n[hidden] { display: none !important; }\n/* Everything inherits from here, not from the Wix page around us. */\n.fc {\n  container: fc / inline-size;\n  background: var(--cream);\n  color: var(--ink);\n  font-family: var(--sans);\n  font-size: 15px;\n  font-weight: 400;\n  line-height: 1.55;\n  letter-spacing: normal;\n  text-align: left;\n  -webkit-font-smoothing: antialiased;\n}\n\n.wrap { max-width: 1180px; margin: 0 auto; padding: 48px 28px 80px; }\n.wrap--narrow { max-width: 640px; }\n\n.display {\n  font-family: var(--serif);\n  font-weight: 700;\n  font-size: clamp(30px, 4.2cqi, 46px);\n  line-height: 1.12;\n  letter-spacing: -0.01em;\n  margin: 0 0 32px;\n  text-align: center;\n}\n.display--sm { font-size: clamp(24px, 3cqi, 30px); text-align: left; margin: 4px 0 28px; }\n.lede { font-size: 17px; color: var(--ink-soft); margin: 0 0 28px; }\n\n.banner {\n  background: var(--warn-bg);\n  color: var(--warn-ink);\n  padding: 10px 20px;\n  font-size: 13px;\n  text-align: center;\n  border-bottom: 1px solid #E8D9B4;\n}\n.banner strong { font-weight: 700; }\n.banner span { opacity: 0.85; }\n\n/* ---------------- router ---------------- */\n.router-cols {\n  display: grid;\n  grid-template-columns: 1fr 1fr 260px;\n  gap: 40px;\n  margin-bottom: 34px;\n  align-items: start;\n}\n.router-head { font-family: var(--serif); font-size: 21px; margin: 0 0 6px; font-weight: 700; }\n.router-blurb { margin: 0; color: var(--ink-soft); font-size: 14px; }\n.router-col--aside { font-size: 14px; color: var(--ink-soft); }\n.aside { margin: 0 0 4px; }\n.pin { color: var(--accent); font-size: 10px; vertical-align: 2px; margin-right: 6px; }\n\n.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 18px; }\n.tiles--muted { margin-top: 18px; opacity: 0.92; }\n\n.tile {\n  border: 1px solid var(--rule);\n  background: #fff;\n  padding: 0;\n  text-align: left;\n  cursor: pointer;\n  font: inherit;\n  color: inherit;\n  transition: border-color .15s, transform .15s, box-shadow .15s;\n  display: flex;\n  flex-direction: column;\n}\n.tile:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(30,27,24,.08); }\n.tile-art { aspect-ratio: 4/3.4; background: var(--cream-deep); position: relative; overflow: hidden; }\n.tile-art::after {\n  content: \"\"; position: absolute; inset: 18%;\n  border: 3px solid rgba(30,27,24,.16);\n  background: repeating-linear-gradient(135deg, rgba(30,27,24,.05) 0 8px, transparent 8px 16px);\n}\n.tile-art, .tile-body, .tile-name, .tile-blurb, .tile-flag { display: block; }\n.tile-body { padding: 14px 16px 18px; }\n.tile-name { font-family: var(--serif); font-size: 17px; font-weight: 700; margin: 0 0 4px; }\n.tile--quotable .tile-name { color: var(--accent-ink); }\n.tile-blurb { margin: 0; font-size: 13px; color: var(--ink-soft); line-height: 1.45; }\n.tile-flag { display: inline-block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); margin-top: 8px; }\n\n.router-foot { text-align: center; margin-top: 40px; color: var(--ink-soft); }\n.link { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }\n.linkbtn { background: none; border: 0; padding: 0; font: inherit; color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }\n.back-link { background: none; border: 0; padding: 0; font: inherit; font-size: 13px; color: var(--ink-faint); cursor: pointer; margin-bottom: 14px; }\n.back-link:hover { color: var(--ink); }\n\n/* ---------------- config layout ---------------- */\n.config-shell {\n  display: grid;\n  grid-template-columns: minmax(0, 1fr) 400px;\n  gap: 56px;\n  max-width: 1180px;\n  margin: 0 auto;\n  padding: 40px 28px 96px;\n  align-items: start;\n}\n.steps { min-width: 0; }\n.step { border-top: 1px solid var(--rule); padding: 26px 0 6px; }\n.step:first-of-type { border-top: 0; padding-top: 0; }\n.step-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }\n.step-num {\n  font-family: var(--serif); font-size: 13px; width: 24px; height: 24px;\n  border: 1px solid var(--rule); border-radius: 50%;\n  display: grid; place-items: center; color: var(--ink-faint); flex: none;\n}\n.step-head h2 { font-family: var(--serif); font-size: 20px; margin: 0; font-weight: 700; }\n.step-note { margin: -6px 0 14px 36px; font-size: 13px; color: var(--ink-soft); }\n.sub-label { font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-faint); margin: 22px 0 8px; }\n\n/* dropzone */\n.dropzone {\n  border: 1.5px dashed var(--rule); background: #fff;\n  padding: 40px 24px; text-align: center; cursor: pointer;\n  transition: border-color .15s, background .15s;\n}\n.dropzone:hover, .dropzone.is-over { border-color: var(--accent); background: #fff; }\n.dz-icon { font-size: 22px; color: var(--accent); margin-bottom: 8px; }\n.dz-title { margin: 0 0 4px; font-size: 15px; }\n.dz-sub { margin: 0; font-size: 13px; color: var(--ink-faint); }\n\n.filemeta { display: flex; gap: 16px; align-items: center; background: #fff; border: 1px solid var(--rule); padding: 12px; }\n.filemeta img { width: 66px; height: 66px; object-fit: cover; flex: none; background: var(--cream-deep); }\n.fm-name { margin: 0 0 2px; font-size: 14px; font-weight: 600; word-break: break-all; }\n.fm-dims { margin: 0 0 4px; font-size: 13px; color: var(--ink-soft); }\n\n/* option grids */\n.opt-grid { display: grid; gap: 10px; }\n.opt-grid--sizes { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }\n.opt-grid--swatch { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }\n\n.opt {\n  border: 1px solid var(--rule); background: #fff; cursor: pointer;\n  font: inherit; color: inherit; text-align: left; padding: 10px 12px;\n  transition: border-color .12s, box-shadow .12s;\n}\n.opt:hover { border-color: var(--ink-faint); }\n.opt[aria-pressed=\"true\"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }\n.opt:disabled { opacity: .38; cursor: not-allowed; }\n.opt-name { display: block; font-size: 13px; font-weight: 600; }\n.opt-meta { display: block; font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }\n.opt-meta--warn { color: var(--warn-ink); }\n\n.swatch { width: 100%; aspect-ratio: 2.6/1; border: 1px solid rgba(30,27,24,.14); margin-bottom: 7px; display: block; }\n\n/* option list rows */\n.opt-list { display: flex; flex-direction: column; gap: 8px; }\n.opt-row {\n  display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;\n  border: 1px solid var(--rule); background: #fff; padding: 11px 14px;\n  cursor: pointer; font: inherit; color: inherit; text-align: left; width: 100%;\n  transition: border-color .12s, box-shadow .12s;\n}\n.opt-row:hover { border-color: var(--ink-faint); }\n.opt-row[aria-pressed=\"true\"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }\n.opt-row-main { min-width: 0; }\n.opt-row-name { display: block; font-size: 14px; font-weight: 600; }\n.opt-row-desc { display: block; font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }\n.opt-row-price { font-size: 13px; color: var(--ink-faint); white-space: nowrap; flex: none; }\n\n/* segmented */\n.seg { display: inline-flex; border: 1px solid var(--rule); background: #fff; margin-bottom: 16px; }\n.seg button {\n  border: 0; background: none; font: inherit; font-size: 13.5px; padding: 9px 18px;\n  cursor: pointer; color: var(--ink-soft); border-right: 1px solid var(--rule);\n}\n.seg button:last-child { border-right: 0; }\n.seg button[aria-pressed=\"true\"] { background: var(--accent); color: #fff; font-weight: 600; }\n\n.slider-row { display: flex; align-items: center; gap: 14px; margin: 20px 0 6px; font-size: 13.5px; }\n.slider-row label { color: var(--ink-soft); flex: none; }\n.slider-row input { flex: 1; accent-color: var(--accent); }\n.slider-row output { font-variant-numeric: tabular-nums; color: var(--ink); flex: none; width: 56px; }\n\n.check { display: flex; gap: 9px; align-items: flex-start; font-size: 13.5px; margin-top: 12px; cursor: pointer; }\n.check input { margin-top: 3px; accent-color: var(--accent); }\n.check em { color: var(--ink-faint); font-style: normal; }\n\n/* ---------------- preview ---------------- */\n.panel-sticky { position: sticky; top: 28px; }\n.preview-stage {\n  background: var(--cream-deep);\n  border: 1px solid var(--rule);\n  height: 340px;\n  display: grid; place-items: center;\n  padding: 24px;\n  overflow: hidden;\n}\n.pv-frame { position: relative; box-shadow: 0 10px 30px rgba(30,27,24,.22); background: #C9A227; }\n.pv-mat, .pv-mat2, .pv-art { position: absolute; }\n.pv-mat { background: #F2ECDD; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }\n.pv-mat2 { background: #F2ECDD; }\n.pv-art {\n  background-color: #D8D2C9;\n  background-repeat: no-repeat;\n  box-shadow: 0 0 0 1px rgba(0,0,0,.10), 2px 2px 6px rgba(0,0,0,.14);\n  display: grid; place-items: center;\n}\n.pv-empty { font-size: 11px; color: rgba(30,27,24,.4); letter-spacing: .04em; }\n\n.pv-art.is-croppable { cursor: grab; touch-action: none; }\n.pv-art.is-dragging { cursor: grabbing; }\n\n.crop-controls { margin-top: 12px; }\n.crop-hint { margin: 0 0 6px; font-size: 12px; color: var(--ink-faint); text-align: center; }\n.crop-row { display: flex; align-items: center; gap: 12px; font-size: 13px; }\n.crop-row label { color: var(--ink-soft); flex: none; }\n.crop-row input { flex: 1; accent-color: var(--accent); }\n\n.dims-caption { text-align: center; font-size: 12.5px; color: var(--ink-faint); margin: 10px 0 22px; font-variant-numeric: tabular-nums; }\n\n/* ---------------- quote ---------------- */\n.quote { border: 1px solid var(--rule); background: #fff; padding: 20px; }\n.quote-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }\n.quote-label { font-size: 12px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-faint); }\n.quote-amount { font-family: var(--serif); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }\n.quote-sub { margin: 4px 0 0; font-size: 12.5px; color: var(--ink-faint); }\n\n.alerts { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }\n.alert { font-size: 13px; padding: 10px 12px; line-height: 1.45; }\n.alert--warn { background: var(--warn-bg); color: var(--warn-ink); }\n.alert--err { background: var(--err-bg); color: var(--err-ink); }\n\n.breakdown-toggle {\n  background: none; border: 0; padding: 0; font: inherit; font-size: 13px;\n  color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px;\n  cursor: pointer; margin-top: 14px;\n}\n.breakdown { margin-top: 12px; border-top: 1px solid var(--rule); padding-top: 12px; }\n.bd-group { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-faint); margin: 10px 0 4px; }\n.bd-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 2px 0; }\n.bd-row span:last-child { font-variant-numeric: tabular-nums; flex: none; }\n.bd-detail { font-size: 11.5px; color: var(--ink-faint); }\n.bd-total { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; border-top: 1px solid var(--rule); margin-top: 10px; padding-top: 10px; }\n.bd-total--big { font-weight: 700; font-size: 15px; border: 0; padding-top: 2px; }\n\n.cta {\n  display: block; width: 100%; margin-top: 18px;\n  background: var(--accent); color: #fff; border: 1px solid var(--accent);\n  font: inherit; font-size: 15px; font-weight: 600; padding: 13px; cursor: pointer;\n  text-align: center; text-decoration: none;\n  transition: background .15s;\n}\n.cta:hover { background: var(--accent-ink); }\n.cta:disabled { background: var(--rule); border-color: var(--rule); color: var(--ink-faint); cursor: not-allowed; }\n.cta--inline { display: inline-block; width: auto; padding: 13px 28px; margin: 0; }\n.cta--pay { margin-top: 10px; background: var(--ok-ink); border-color: var(--ok-ink); }\n.cta--pay:hover { background: #24471F; border-color: #24471F; }\n.cta--ghost { background: none; color: var(--accent-ink); border-color: var(--rule); }\n.cta--ghost:hover { background: var(--cream-deep); }\n\n.quote-foot { font-size: 12px; color: var(--ink-faint); margin: 12px 0 0; line-height: 1.5; }\n.consult-actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 8px 0 28px; }\n\n/* Responds to the element's own width, not the viewport's: inside a Wix page\n   the configurator can be much narrower than the screen. */\n@container fc (max-width: 940px) {\n  .config-shell { grid-template-columns: 1fr; gap: 32px; }\n  .panel-sticky { position: static; }\n  .router-cols { grid-template-columns: 1fr; gap: 20px; }\n}\n\n/* ---------------- element states ---------------- */\n.fc-loading { margin: 0; padding: 72px 24px; text-align: center; color: var(--ink-faint); font-size: 14px; }\n.alert--ok { background: var(--ok-bg); color: var(--ok-ink); }\n.submit-result { margin-top: 12px; }\n";
-const TEMPLATE = "<div class=\"fc\">\n  <p id=\"fc-loading\" class=\"fc-loading\">Loading the frame shop…</p>\n\n  <div id=\"placeholder-banner\" class=\"banner\" hidden>\n    <strong id=\"banner-title\">Placeholder pricing.</strong>\n    <span id=\"banner-body\">These are invented numbers so the tool has something to show.</span>\n  </div>\n\n  <!-- ============================ SCOPE ROUTER ============================ -->\n  <section id=\"screen-router\" class=\"screen\" hidden>\n    <div class=\"wrap\">\n      <h1 class=\"display\">What are you framing?</h1>\n\n      <div class=\"router-cols\">\n        <div class=\"router-col\">\n          <h2 class=\"router-head\">Quote it online</h2>\n          <p class=\"router-blurb\">Flat, rectangular pieces. You'll get a price on this page in about a minute.</p>\n        </div>\n        <div class=\"router-col\">\n          <h2 class=\"router-head\">Bring it in to us</h2>\n          <p class=\"router-blurb\">Anything with depth, texture or sentimental risk. Owen prices these by hand — it's how they come out right.</p>\n        </div>\n        <div class=\"router-col router-col--aside\">\n          <p class=\"aside\"><span class=\"pin\">&#9679;</span> Shop 15, Design &amp; Decor Centre, Fourways</p>\n          <a class=\"link\" href=\"https://www.picframing.co.za/contact\" target=\"_blank\" rel=\"noopener\">Get directions</a>\n        </div>\n      </div>\n\n      <div class=\"tiles\" id=\"tiles-quotable\"></div>\n      <div class=\"tiles tiles--muted\" id=\"tiles-consult\"></div>\n\n      <p class=\"router-foot\">Not sure where to start? <a class=\"link\" href=\"https://www.picframing.co.za/contact\" target=\"_blank\" rel=\"noopener\">Ask us — we'll tell you straight.</a></p>\n    </div>\n  </section>\n\n  <!-- ============================ CONFIGURATOR ============================ -->\n  <section id=\"screen-config\" class=\"screen\" hidden>\n    <div class=\"config-shell\">\n\n      <!-- ---------- left: steps ---------- -->\n      <div class=\"steps\">\n        <button class=\"back-link\" id=\"btn-back\">&larr; Start over</button>\n        <h1 class=\"display display--sm\" id=\"config-title\">Frame your photo</h1>\n\n        <!-- Step 1: upload -->\n        <div class=\"step\" id=\"step-upload\">\n          <div class=\"step-head\"><span class=\"step-num\">1</span><h2>Your image</h2></div>\n          <div class=\"dropzone\" id=\"dropzone\">\n            <input type=\"file\" id=\"file-input\" accept=\"image/jpeg,image/png,image/webp,image/heic,image/heif\" hidden>\n            <div class=\"dz-inner\">\n              <div class=\"dz-icon\">&#8593;</div>\n              <p class=\"dz-title\">Drop a photo here, or <button class=\"linkbtn\" id=\"btn-browse\">browse</button></p>\n              <p class=\"dz-sub\">JPG, PNG, HEIC. We check the resolution before you pay for anything.</p>\n            </div>\n          </div>\n          <div class=\"filemeta\" id=\"filemeta\" hidden>\n            <img id=\"thumb\" alt=\"Your uploaded image\">\n            <div class=\"filemeta-text\">\n              <p class=\"fm-name\" id=\"fm-name\"></p>\n              <p class=\"fm-dims\" id=\"fm-dims\"></p>\n              <button class=\"linkbtn\" id=\"btn-replace\">Replace</button>\n            </div>\n          </div>\n        </div>\n\n        <!-- Step 2: size -->\n        <div class=\"step\" id=\"step-size\">\n          <div class=\"step-head\"><span class=\"step-num\">2</span><h2>Print size</h2></div>\n          <p class=\"step-note\" id=\"size-note\"></p>\n          <div class=\"opt-grid opt-grid--sizes\" id=\"size-options\"></div>\n        </div>\n\n        <!-- Step 3: frame -->\n        <div class=\"step\">\n          <div class=\"step-head\"><span class=\"step-num\">3</span><h2>Frame</h2></div>\n          <div class=\"opt-grid opt-grid--swatch\" id=\"moulding-options\"></div>\n        </div>\n\n        <!-- Step 4: mat -->\n        <div class=\"step\">\n          <div class=\"step-head\"><span class=\"step-num\">4</span><h2>Mat</h2></div>\n          <div class=\"seg\" id=\"mat-style\"></div>\n          <div id=\"mat-detail\" hidden>\n            <div class=\"opt-grid opt-grid--swatch\" id=\"mat1-options\"></div>\n            <div id=\"mat2-block\" hidden>\n              <p class=\"sub-label\">Under mat — the thin line of colour next to your photo</p>\n              <div class=\"opt-grid opt-grid--swatch\" id=\"mat2-options\"></div>\n            </div>\n            <div class=\"slider-row\">\n              <label for=\"border-slider\">Border width</label>\n              <input type=\"range\" id=\"border-slider\" min=\"25\" max=\"120\" step=\"5\">\n              <output id=\"border-out\"></output>\n            </div>\n            <label class=\"check\">\n              <input type=\"checkbox\" id=\"bottom-weight\">\n              <span>Weight the bottom border <em>— an old framing trick; stops it looking like it's sliding down</em></span>\n            </label>\n          </div>\n        </div>\n\n        <!-- Step 5: finishing -->\n        <div class=\"step\">\n          <div class=\"step-head\"><span class=\"step-num\">5</span><h2>Glass &amp; finishing</h2></div>\n          <div class=\"opt-list\" id=\"glazing-options\"></div>\n          <p class=\"sub-label\">Mounting</p>\n          <div class=\"opt-list\" id=\"mounting-options\"></div>\n          <p class=\"sub-label\" id=\"paper-label\">Paper</p>\n          <div class=\"opt-list\" id=\"paper-options\"></div>\n          <p class=\"sub-label\">Getting it to you</p>\n          <div class=\"opt-list\" id=\"delivery-options\"></div>\n        </div>\n      </div>\n\n      <!-- ---------- right: preview + price ---------- -->\n      <aside class=\"panel\">\n        <div class=\"panel-sticky\">\n          <div class=\"preview-stage\" id=\"preview-stage\">\n            <div class=\"pv-frame\" id=\"pv-frame\">\n              <div class=\"pv-mat\" id=\"pv-mat\">\n                <div class=\"pv-mat2\" id=\"pv-mat2\">\n                  <div class=\"pv-art\" id=\"pv-art\"><span class=\"pv-empty\">Your photo</span></div>\n                </div>\n              </div>\n            </div>\n          </div>\n          <div class=\"crop-controls\" id=\"crop-controls\" hidden>\n            <p class=\"crop-hint\">Drag the photo to reposition. Scroll to zoom.</p>\n            <div class=\"crop-row\">\n              <label for=\"crop-zoom\">Zoom</label>\n              <input type=\"range\" id=\"crop-zoom\" min=\"100\" max=\"400\" step=\"1\" value=\"100\">\n              <button class=\"linkbtn\" id=\"btn-crop-reset\">Fit</button>\n            </div>\n          </div>\n          <p class=\"dims-caption\" id=\"dims-caption\"></p>\n\n          <div class=\"quote\" id=\"quote\">\n            <div class=\"quote-head\">\n              <span class=\"quote-label\" id=\"quote-label\">Estimate</span>\n              <span class=\"quote-amount\" id=\"quote-amount\">&mdash;</span>\n            </div>\n            <p class=\"quote-sub\" id=\"quote-sub\"></p>\n            <div class=\"alerts\" id=\"alerts\"></div>\n            <button class=\"breakdown-toggle\" id=\"btn-breakdown\">See the breakdown</button>\n            <div class=\"breakdown\" id=\"breakdown\" hidden></div>\n            <button class=\"cta\" id=\"btn-request\">Request this quote</button>\n            <button class=\"cta cta--pay\" id=\"btn-pay\" hidden>Pay now and order</button>\n            <div class=\"alert submit-result\" id=\"submit-result\" role=\"status\" hidden></div>\n            <p class=\"quote-foot\" id=\"quote-foot\"></p>\n          </div>\n        </div>\n      </aside>\n    </div>\n  </section>\n\n  <!-- ============================ CONSULTATION ============================ -->\n  <section id=\"screen-consult\" class=\"screen\" hidden>\n    <div class=\"wrap wrap--narrow\">\n      <button class=\"back-link\" id=\"btn-back-2\">&larr; Back</button>\n      <h1 class=\"display\" id=\"consult-title\">Let's talk about this one</h1>\n      <p class=\"lede\" id=\"consult-body\"></p>\n      <div class=\"consult-actions\">\n        <a class=\"cta cta--inline\" href=\"https://wa.me/27832994208\" target=\"_blank\" rel=\"noopener\">WhatsApp us</a>\n        <a class=\"cta cta--ghost\" href=\"tel:+27114658096\">011 465 8096</a>\n      </div>\n      <p class=\"quote-foot\">Shop 15, Design &amp; Decor Centre, Fourways. Bring the piece if you can — it's much easier to price in the hand.</p>\n    </div>\n  </section>\n</div>\n";
+const TEMPLATE = "<div class=\"fc\">\n  <p id=\"fc-loading\" class=\"fc-loading\">Loading the frame shop…</p>\n\n  <div id=\"placeholder-banner\" class=\"banner\" hidden>\n    <strong id=\"banner-title\">Placeholder pricing.</strong>\n    <span id=\"banner-body\">These are invented numbers so the tool has something to show.</span>\n  </div>\n\n  <!-- ============================ SCOPE ROUTER ============================ -->\n  <section id=\"screen-router\" class=\"screen\" hidden>\n    <div class=\"wrap\">\n      <h1 class=\"display\">What are you framing?</h1>\n\n      <div class=\"router-cols\">\n        <div class=\"router-col\">\n          <h2 class=\"router-head\">Quote it online</h2>\n          <p class=\"router-blurb\">Flat, rectangular pieces. You'll get a price on this page in about a minute.</p>\n        </div>\n        <div class=\"router-col\">\n          <h2 class=\"router-head\">Bring it in to us</h2>\n          <p class=\"router-blurb\">Anything with depth, texture or sentimental risk. Owen prices these by hand — it's how they come out right.</p>\n        </div>\n        <div class=\"router-col router-col--aside\">\n          <p class=\"aside\"><span class=\"pin\">&#9679;</span> Shop 15, Design &amp; Decor Centre, Fourways</p>\n          <a class=\"link\" href=\"https://www.picframing.co.za/contact\" target=\"_blank\" rel=\"noopener\">Get directions</a>\n        </div>\n      </div>\n\n      <div class=\"tiles\" id=\"tiles-quotable\"></div>\n      <div class=\"tiles tiles--muted\" id=\"tiles-consult\"></div>\n\n      <p class=\"router-foot\">Not sure where to start? <a class=\"link\" href=\"https://www.picframing.co.za/contact\" target=\"_blank\" rel=\"noopener\">Ask us — we'll tell you straight.</a></p>\n    </div>\n  </section>\n\n  <!-- ============================ CONFIGURATOR ============================ -->\n  <section id=\"screen-config\" class=\"screen\" hidden>\n    <div class=\"config-shell\">\n\n      <!-- ---------- left: steps ---------- -->\n      <div class=\"steps\">\n        <button class=\"back-link\" id=\"btn-back\">&larr; Start over</button>\n        <h1 class=\"display display--sm\" id=\"config-title\">Frame your photo</h1>\n\n        <!-- Step 1: upload -->\n        <div class=\"step\" id=\"step-upload\">\n          <div class=\"step-head\"><span class=\"step-num\">1</span><h2>Your image</h2></div>\n          <div class=\"dropzone\" id=\"dropzone\">\n            <input type=\"file\" id=\"file-input\" accept=\"image/jpeg,image/png,image/webp,image/heic,image/heif\" hidden>\n            <div class=\"dz-inner\">\n              <div class=\"dz-icon\">&#8593;</div>\n              <p class=\"dz-title\">Drop a photo here, or <button class=\"linkbtn\" id=\"btn-browse\">browse</button></p>\n              <p class=\"dz-sub\">JPG, PNG, HEIC. We check the resolution before you pay for anything.</p>\n            </div>\n          </div>\n          <div class=\"filemeta\" id=\"filemeta\" hidden>\n            <img id=\"thumb\" alt=\"Your uploaded image\">\n            <div class=\"filemeta-text\">\n              <p class=\"fm-name\" id=\"fm-name\"></p>\n              <p class=\"fm-dims\" id=\"fm-dims\"></p>\n              <button class=\"linkbtn\" id=\"btn-replace\">Replace</button>\n            </div>\n          </div>\n        </div>\n\n        <!-- Step 2: size -->\n        <div class=\"step\" id=\"step-size\">\n          <div class=\"step-head\"><span class=\"step-num\">2</span><h2>Print size</h2></div>\n          <p class=\"step-note\" id=\"size-note\"></p>\n          <div class=\"opt-grid opt-grid--sizes\" id=\"size-options\"></div>\n        </div>\n\n        <!-- Step 3: frame -->\n        <div class=\"step\">\n          <div class=\"step-head\"><span class=\"step-num\">3</span><h2>Frame</h2></div>\n          <div class=\"opt-grid opt-grid--swatch\" id=\"moulding-options\"></div>\n        </div>\n\n        <!-- Step 4: mat -->\n        <div class=\"step\">\n          <div class=\"step-head\"><span class=\"step-num\">4</span><h2>Mat</h2></div>\n          <div class=\"seg\" id=\"mat-style\"></div>\n          <div id=\"mat-detail\" hidden>\n            <div class=\"opt-grid opt-grid--swatch\" id=\"mat1-options\"></div>\n            <div id=\"mat2-block\" hidden>\n              <p class=\"sub-label\">Under mat — the thin line of colour next to your photo</p>\n              <div class=\"opt-grid opt-grid--swatch\" id=\"mat2-options\"></div>\n            </div>\n            <div class=\"slider-row\">\n              <label for=\"border-slider\">Border width</label>\n              <input type=\"range\" id=\"border-slider\" min=\"25\" max=\"120\" step=\"5\">\n              <output id=\"border-out\"></output>\n            </div>\n            <label class=\"check\">\n              <input type=\"checkbox\" id=\"bottom-weight\">\n              <span>Weight the bottom border <em>— an old framing trick; stops it looking like it's sliding down</em></span>\n            </label>\n          </div>\n        </div>\n\n        <!-- Step 5: finishing -->\n        <div class=\"step\">\n          <div class=\"step-head\"><span class=\"step-num\">5</span><h2>Glass &amp; finishing</h2></div>\n          <div class=\"opt-list\" id=\"glazing-options\"></div>\n          <p class=\"sub-label\">Mounting</p>\n          <div class=\"opt-list\" id=\"mounting-options\"></div>\n          <p class=\"sub-label\" id=\"paper-label\">Paper</p>\n          <div class=\"opt-list\" id=\"paper-options\"></div>\n          <p class=\"sub-label\">Getting it to you</p>\n          <div class=\"opt-list\" id=\"delivery-options\"></div>\n          <label class=\"check\" id=\"rush-row\" hidden>\n            <input type=\"checkbox\" id=\"rush-order\">\n            <span id=\"rush-text\"></span>\n          </label>\n        </div>\n      </div>\n\n      <!-- ---------- right: preview + price ---------- -->\n      <aside class=\"panel\">\n        <div class=\"panel-sticky\">\n          <div class=\"preview-stage\" id=\"preview-stage\">\n            <div class=\"pv-frame\" id=\"pv-frame\">\n              <div class=\"pv-mat\" id=\"pv-mat\">\n                <div class=\"pv-mat2\" id=\"pv-mat2\">\n                  <div class=\"pv-art\" id=\"pv-art\"><span class=\"pv-empty\">Your photo</span></div>\n                </div>\n              </div>\n            </div>\n          </div>\n          <div class=\"crop-controls\" id=\"crop-controls\" hidden>\n            <p class=\"crop-hint\">Drag the photo to reposition. Scroll to zoom.</p>\n            <div class=\"crop-row\">\n              <label for=\"crop-zoom\">Zoom</label>\n              <input type=\"range\" id=\"crop-zoom\" min=\"100\" max=\"400\" step=\"1\" value=\"100\">\n              <button class=\"linkbtn\" id=\"btn-crop-reset\">Fit</button>\n            </div>\n          </div>\n          <p class=\"dims-caption\" id=\"dims-caption\"></p>\n\n          <div class=\"quote\" id=\"quote\">\n            <div class=\"quote-head\">\n              <span class=\"quote-label\" id=\"quote-label\">Estimate</span>\n              <span class=\"quote-amount\" id=\"quote-amount\">&mdash;</span>\n            </div>\n            <p class=\"quote-sub\" id=\"quote-sub\"></p>\n            <div class=\"alerts\" id=\"alerts\"></div>\n            <button class=\"breakdown-toggle\" id=\"btn-breakdown\">See the breakdown</button>\n            <div class=\"breakdown\" id=\"breakdown\" hidden></div>\n            <button class=\"cta\" id=\"btn-request\">Request this quote</button>\n            <button class=\"cta cta--pay\" id=\"btn-pay\" hidden>Pay now and order</button>\n            <div class=\"alert submit-result\" id=\"submit-result\" role=\"status\" hidden></div>\n            <p class=\"quote-foot\" id=\"quote-foot\"></p>\n          </div>\n        </div>\n      </aside>\n    </div>\n  </section>\n\n  <!-- ============================ CONSULTATION ============================ -->\n  <section id=\"screen-consult\" class=\"screen\" hidden>\n    <div class=\"wrap wrap--narrow\">\n      <button class=\"back-link\" id=\"btn-back-2\">&larr; Back</button>\n      <h1 class=\"display\" id=\"consult-title\">Let's talk about this one</h1>\n      <p class=\"lede\" id=\"consult-body\"></p>\n      <div class=\"consult-actions\">\n        <a class=\"cta cta--inline\" href=\"https://wa.me/27832994208\" target=\"_blank\" rel=\"noopener\">WhatsApp us</a>\n        <a class=\"cta cta--ghost\" href=\"tel:+27114658096\">011 465 8096</a>\n      </div>\n      <p class=\"quote-foot\">Shop 15, Design &amp; Decor Centre, Fourways. Bring the piece if you can — it's much easier to price in the hand.</p>\n    </div>\n  </section>\n</div>\n";
 
 // ---- lib/crop.js ----
 /**
@@ -208,6 +208,37 @@ function pickGlazingVariant(option, boardW, boardH) {
     .sort((a, b) => a.sellPerM2ExVat - b.sellPerM2ExVat)[0] ?? null;
 }
 
+/**
+ * A mount board comes in more than one sheet size. The shop calls them option A,
+ * the standard sheet, and option B, a bigger one that costs more per square
+ * metre. Same shape as glazing variants, and picked the same way.
+ */
+function matSheets(board) {
+  return board?.sheets?.length ? board.sheets : [board];
+}
+
+/**
+ * The cheapest sheet option for a board of this size, or null if it outgrows
+ * them all. PriceMaster picks the option on the board's longest side alone,
+ * not on whether the piece nests in the sheet: their own quotes charge option A
+ * for a 1000 x 870 and an 880 x 980 board, both wider than an 815 mm sheet, and
+ * only move to option B at 1110 mm long. So this is a size band, not a cutting
+ * plan, and the shop knows how to get the piece out of the board.
+ */
+function pickMatSheet(board, boardW, boardH) {
+  const longSide = Math.max(boardW, boardH);
+  return matSheets(board)
+    .filter((sheet) => longSide <= (sheet.maxBoardLongSideMm
+      ?? (Math.max(sheet.sheetWidthMm ?? 0, sheet.sheetHeightMm ?? 0) || Infinity)))
+    .sort((a, b) => a.sellPerM2ExVat - b.sellPerM2ExVat)[0] ?? null;
+}
+
+/** The biggest piece any of a board's sheets can yield, for the error message. */
+function matMaxSheet(board) {
+  const area = (s) => (s.sheetWidthMm ?? 0) * (s.sheetHeightMm ?? 0);
+  return [...matSheets(board)].sort((a, b) => area(b) - area(a))[0];
+}
+
 function glazingMaxLongSide(option) {
   return Math.max(...glazingVariants(option).map((v) => v.maxLongSideMm ?? Infinity));
 }
@@ -284,10 +315,10 @@ function validate(spec, rates) {
     const matCodes = new Set([spec.mat1Code, spec.mat2Code].slice(0, MAT_COUNT[spec.matStyle] ?? 0));
     for (const code of matCodes) {
       const board = findBy(rates.matBoards, 'code', code);
-      if (board && !fitsSheet(geo.boardW, geo.boardH, board.sheetWidthMm, board.sheetHeightMm)) {
+      if (board && !pickMatSheet(board, geo.boardW, geo.boardH)) {
         errors.push({
           code: 'MAT_TOO_BIG',
-          message: `${board.colourName} mat comes in ${board.sheetWidthMm} x ${board.sheetHeightMm}mm sheets, too small for this frame. Try a narrower border or another mat.`,
+          message: `The largest ${board.colourName} sheet is ${matMaxSheet(board).sheetWidthMm} x ${matMaxSheet(board).sheetHeightMm}mm, too small for this frame. Try a narrower border or another mount.`,
           routeToConsultation: false,
         });
       }
@@ -371,13 +402,15 @@ function computePrice(spec, rates) {
     const code = i === 0 ? spec.mat1Code : spec.mat2Code;
     const board = findBy(rates.matBoards, 'code', code);
     if (!board) throw new Error(`Unknown mat board: ${code}`);
-    const rate = board.sellPerM2ExVat;
-    const sheetAreaM2 = (board.sheetWidthMm * board.sheetHeightMm) / 1e6;
-    const chargeableM2 = Math.max(area, sheetAreaM2 * (board.minSheetFraction ?? 0));
+    // A board too big for the standard sheet is cut from a larger, dearer one.
+    const sheet = pickMatSheet(board, geo.boardW, geo.boardH) ?? matMaxSheet(board);
+    const rate = sheet.sellPerM2ExVat;
+    const sheetAreaM2 = (sheet.sheetWidthMm * sheet.sheetHeightMm) / 1e6;
+    const chargeableM2 = Math.max(area, sheetAreaM2 * (sheet.minSheetFraction ?? board.minSheetFraction ?? 0));
     lines.push({
       group: 'Mount',
       label: `${board.colourName}${geo.matCount === 2 ? (i === 0 ? ' (top)' : ' (under)') : ''}`,
-      detail: `${chargeableM2.toFixed(3)} m² at ${rand(rate)}/m²`,
+      detail: `${chargeableM2.toFixed(3)} m² at ${rand(rate)}/m²${sheet.label ? `, ${sheet.label} sheet` : ''}`,
       amount: chargeableM2 * rate,
     });
   }
@@ -419,9 +452,19 @@ function computePrice(spec, rates) {
     });
   }
 
-  // --- Fitting: the shop's flat "Extras" ----------------------------
+  // --- The shop's flat "Extras": nylon string, hooks and fitting -----
   if (labour.fittingExVat) {
-    lines.push({ group: 'Workshop', label: 'Fitting and hardware', detail: 'per frame', amount: labour.fittingExVat });
+    lines.push({
+      group: 'Workshop',
+      label: labour.fittingLabel ?? 'Fitting and hardware',
+      detail: 'per frame',
+      amount: labour.fittingExVat,
+    });
+  }
+
+  // --- Same-day rush, if they asked for it --------------------------
+  if (spec.rushOrder && rules.rushFeeExVat > 0) {
+    lines.push({ group: 'Workshop', label: 'Same-day rush', detail: 'jumped to the front of the queue', amount: rules.rushFeeExVat });
   }
 
   // --- Delivery -----------------------------------------------------
@@ -433,13 +476,18 @@ function computePrice(spec, rates) {
   // --- Totals -------------------------------------------------------
   let subtotalExVat = lines.reduce((sum, l) => sum + l.amount, 0);
 
+  // The shop's minimum order is what the customer pays, so it is measured on the
+  // total including VAT. Their own R458 quote stands, because R527 with VAT on
+  // top already clears the R500 minimum.
+  const vatRate = rules.vatRegistered ? rules.vatRatePct / 100 : 0;
+  const minimum = rules.minOrderValueIncVat ?? rules.minOrderValueExVat ?? 0;
   let minimumApplied = false;
-  if (subtotalExVat < (rules.minOrderValueExVat ?? 0)) {
-    subtotalExVat = rules.minOrderValueExVat;
+  if (subtotalExVat * (1 + vatRate) < minimum) {
+    subtotalExVat = minimum / (1 + vatRate);
     minimumApplied = true;
   }
 
-  const vat = rules.vatRegistered ? subtotalExVat * (rules.vatRatePct / 100) : 0;
+  const vat = subtotalExVat * vatRate;
   const totalIncVat = roundTo(subtotalExVat + vat, rules.roundToNearest);
 
   const range = rules.quoteMode === 'range'
@@ -488,6 +536,14 @@ function roundTo(value, nearest) {
 
 function formatZar(amount) {
   return 'R' + Math.round(amount).toLocaleString('en-ZA');
+}
+
+/**
+ * The same, but to the cent. For amounts we are about to charge: a button that
+ * says R360 should not put R360,50 through the card.
+ */
+function formatZarExact(amount) {
+  return 'R' + Number(amount).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 
@@ -550,6 +606,7 @@ function freshState() {
     mat2Code: null,
     matBorderSidesMm: 60,
     bottomWeighted: false,
+    rushOrder: false,
     glazingCode: null,
     mountingId: null,
     printPaperCode: null,
@@ -840,6 +897,11 @@ function mountConfigurator(host, root) {
       renderQuote();
     });
 
+    $('rush-order').addEventListener('change', (e) => {
+      state.rushOrder = e.target.checked;
+      render();
+    });
+
     $('bottom-weight').addEventListener('change', (e) => {
       state.bottomWeighted = e.target.checked;
       renderPreview();
@@ -971,6 +1033,16 @@ function mountConfigurator(host, root) {
     $('border-slider').value = state.matBorderSidesMm;
     $('border-out').textContent = `${state.matBorderSidesMm} mm`;
     $('bottom-weight').checked = state.bottomWeighted;
+
+    // The shop offers same-day work for a fixed extra. Only shown if they price one.
+    const rushFee = rates.businessRules?.rushFeeExVat ?? 0;
+    $('rush-row').hidden = !(rushFee > 0);
+    $('rush-order').checked = state.rushOrder;
+    if (rushFee > 0) {
+      const days = rates.businessRules.turnaroundWorkingDays;
+      $('rush-text').innerHTML = `In a hurry? Same-day for ${esc(formatZar(rushFee * 1.15))}`
+        + (days ? ` <em>— the usual wait is about ${esc(days)} working days</em>` : '');
+    }
   }
 
   function renderFinishing() {
@@ -1184,6 +1256,7 @@ function mountConfigurator(host, root) {
       mat2Code: state.mat2Code,
       matBorderSidesMm: state.matBorderSidesMm,
       matBorderBottomMm: state.matBorderSidesMm + (state.bottomWeighted ? rules.bottomWeightExtraMm : 0),
+      rushOrder: state.rushOrder,
       mouldingCode: state.mouldingCode,
       glazingCode: state.glazingCode,
       mountingId: state.mountingId,
@@ -1226,6 +1299,11 @@ function mountConfigurator(host, root) {
     // real invoices. The backend refuses to start a checkout before that too.
     $('btn-pay').hidden = rates._meta?.validated !== true;
     $('btn-pay').disabled = state.submitting;
+    // The shop starts work on a deposit, so say what the button will charge.
+    const deposit = depositOn(q.totalIncVat);
+    $('btn-pay').textContent = deposit.balance > 0
+      ? `Pay ${formatZarExact(deposit.payNow)} deposit`
+      : `Pay ${formatZarExact(deposit.payNow)} and order`;
 
     if (q.quoteMode === 'range') {
       $('quote-label').textContent = 'Estimated range';
@@ -1233,7 +1311,8 @@ function mountConfigurator(host, root) {
       $('quote-sub').textContent = 'Incl. VAT. We confirm the exact figure when we see the job.';
     } else {
       $('quote-label').textContent = 'Your price';
-      $('quote-amount').textContent = formatZar(q.totalIncVat);
+      // Exact mode means exact: this is the figure the card is charged against.
+      $('quote-amount').textContent = formatZarExact(q.totalIncVat);
       $('quote-sub').textContent = `Incl. VAT. Valid ${q.validityDays} days.`;
     }
 
@@ -1245,9 +1324,19 @@ function mountConfigurator(host, root) {
     renderBreakdown(q);
 
     $('quote-foot').textContent = [
+      deposit.balance > 0 && !$('btn-pay').hidden
+        ? `We start on a ${deposit.pct}% deposit; ${formatZarExact(deposit.balance)} is due when you collect.`
+        : '',
       q.turnaroundWorkingDays ? `About ${q.turnaroundWorkingDays} working days once approved.` : '',
       state.printedByUs ? `We keep your photo for ${rates.businessRules.photoRetentionDays} days, then delete it.` : '',
     ].filter(Boolean).join(' ');
+  }
+
+  /** Mirrors splitDeposit on the backend, which is what actually charges. */
+  function depositOn(totalIncVat) {
+    const pct = Math.min(100, Math.max(1, Number(rates.businessRules?.depositPct) || 100));
+    const payNow = Math.round(totalIncVat * pct) / 100;
+    return { pct, payNow, balance: Math.round((totalIncVat - payNow) * 100) / 100 };
   }
 
   function renderBreakdown(q) {
@@ -1260,9 +1349,9 @@ function mountConfigurator(host, root) {
             <span>${formatZar(l.amount)}</span>
           </div>`).join('')}
       `).join('') + `
-        <div class="bd-total"><span>Subtotal excl. VAT</span><span>${formatZar(q.subtotalExVat)}</span></div>
-        <div class="bd-total" style="border:0;padding-top:2px"><span>VAT ${esc(rates.businessRules.vatRatePct)}%</span><span>${formatZar(q.vat)}</span></div>
-        <div class="bd-total bd-total--big"><span>Total incl. VAT</span><span>${formatZar(q.totalIncVat)}</span></div>`;
+        <div class="bd-total"><span>Subtotal excl. VAT</span><span>${formatZarExact(q.subtotalExVat)}</span></div>
+        <div class="bd-total" style="border:0;padding-top:2px"><span>VAT ${esc(rates.businessRules.vatRatePct)}%</span><span>${formatZarExact(q.vat)}</span></div>
+        <div class="bd-total bd-total--big"><span>Total incl. VAT</span><span>${formatZarExact(q.totalIncVat)}</span></div>`;
   }
 
   /* ---------------------------------------------------------------- *
