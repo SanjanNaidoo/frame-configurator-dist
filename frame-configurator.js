@@ -493,6 +493,22 @@ function computePrice(spec, rates) {
     lines.push({ group: 'Delivery', label: delivery.label, detail: '', amount: delivery.rateExVat });
   }
 
+  // --- An online markup, if the shop ever wants one ------------------
+  // As its own line, not folded into the others: the customer is shown this
+  // breakdown, and a breakdown that doesn't add up to its total is worse than
+  // no breakdown. 0 means the website charges counter prices, which is what
+  // the shop signed off.
+  const markupPct = rules.onlineMarkupPct ?? 0;
+  if (markupPct > 0) {
+    const onParts = lines.reduce((sum, l) => sum + l.amount, 0);
+    lines.push({
+      group: 'Workshop',
+      label: 'Online ordering',
+      detail: `${markupPct}%`,
+      amount: onParts * (markupPct / 100),
+    });
+  }
+
   // --- Totals -------------------------------------------------------
   let subtotalExVat = lines.reduce((sum, l) => sum + l.amount, 0);
 
