@@ -1871,3 +1871,6 @@ function mountConfigurator(host, root) {
 if (!customElements.get(TAG)) customElements.define(TAG, FrameConfigurator);
 
 })();
+
+window.FRAME_CONFIGURATOR_BUILD = "2026-10-06T13:13:25Z";
+console.info('[frame-configurator] build 2026-10-06T13:13:25Z, rate card 2026-10-01');
