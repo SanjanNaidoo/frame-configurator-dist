@@ -1290,11 +1290,17 @@ function mountConfigurator(host, root) {
     return portrait ? { w: short, h: long } : { w: long, h: short };
   }
 
-  /** A moulding's own photo where we have one, its colour where we don't. */
+  /**
+   * A moulding's own photo where we have one, its colour where we don't.
+   *
+   * Single quotes inside url(), because this is written into a style="..."
+   * attribute: double quotes would close the attribute on the first character
+   * of the data URI and leave every textured swatch blank.
+   */
   function swatchStyle(moulding) {
     const texture = FRAME_TEXTURES[moulding.code];
     return texture
-      ? `background-image:url("${texture.across}");background-size:auto 100%;background-position:center`
+      ? `background-image:url('${texture.across}');background-size:auto 100%;background-position:center`
       : `background:${safeColour(moulding.hex)}`;
   }
 
