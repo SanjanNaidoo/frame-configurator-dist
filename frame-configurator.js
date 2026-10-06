@@ -797,11 +797,20 @@ const onlineOnly = (list = []) => list.filter((x) => x.showOnline !== false);
  */
 let sessionState = null;
 
+/*
+ * sessionStorage, if this frame is allowed it. Inside Wix the element runs in a
+ * cross-origin iframe where touching it throws, so this is the fast path and
+ * never the only one: the page holds a copy of the session too, and hands it
+ * back on the attribute that caused the rebuild.
+ */
 const store = (() => {
   try {
-    return window.sessionStorage;
+    const probe = window.sessionStorage;
+    probe.setItem('picframing.probe', '1');
+    probe.removeItem('picframing.probe');
+    return probe;
   } catch {
-    return null;    // blocked by the browser; the configurator still works
+    return null;
   }
 })();
 
@@ -891,8 +900,38 @@ function mountConfigurator(host, root) {
 
   const state = sessionState ?? (sessionState = unpackSession(loadSession(store), freshState()));
 
-  /** Called after anything the customer chose, so a rebuild can pick it up. */
-  const remember = () => saveSession(state, store);
+  /**
+   * Called after anything the customer chose, so a rebuild can pick it up.
+   *
+   * Two copies, because neither is reliable on its own. sessionStorage is
+   * unavailable in Wix's iframe, and module scope doesn't survive the script
+   * being re-run — so the page is told as well, and hands it back on whatever
+   * attribute triggered the rebuild.
+   */
+  let announced = null;
+  function remember() {
+    saveSession(state, store);
+    const packed = JSON.stringify(packSession(state));
+    if (packed === announced) return;        // nothing worth telling the page
+    announced = packed;
+    host.dispatchEvent(new CustomEvent('state-changed', { detail: { session: JSON.parse(packed) } }));
+  }
+
+  /**
+   * Pick the customer back up from a session the page handed us. Only when we
+   * have nothing of our own: a live element must never be rewound by an older
+   * copy of its own state.
+   */
+  function resumeFrom(session) {
+    if (!session || state.lane) return false;
+    Object.assign(state, unpackSession(session, freshState()));
+    saveSession(state, store);
+    if (rates && state.lane) {
+      openLane(state.lane);
+      return true;
+    }
+    return false;
+  }
 
   /* ---------------------------------------------------------------- *
    * Entry points
@@ -941,6 +980,9 @@ function mountConfigurator(host, root) {
   function showSubmitResult(json) {
     let result;
     try { result = JSON.parse(json); } catch { result = { ok: false }; }
+
+    // The rebuild this reply caused may have wiped us. The page kept a copy.
+    resumeFrom(result.session);
 
     state.submitting = false;
     const box = $('submit-result');
@@ -1098,6 +1140,7 @@ function mountConfigurator(host, root) {
   function setUploadUrl(value) {
     try {
       const result = JSON.parse(value);
+      resumeFrom(result.session);
       state.uploadUrls = result.ok ? result.uploadUrls : null;
       state.uploadError = result.ok ? null : (result.message ?? 'We couldn\'t prepare the upload.');
     } catch {
@@ -1867,10 +1910,12 @@ function mountConfigurator(host, root) {
   return { setRateCard, openLane, acceptFile, showSubmitResult, setUploadUrl };
 }
 
+console.info(`[frame-configurator] session storage ${store ? 'available' : 'blocked, the page will hold the session'}`);
+
 // Last, so every const above is initialised before an existing element upgrades.
 if (!customElements.get(TAG)) customElements.define(TAG, FrameConfigurator);
 
 })();
 
-window.FRAME_CONFIGURATOR_BUILD = "2026-10-06T13:13:25Z";
-console.info('[frame-configurator] build 2026-10-06T13:13:25Z, rate card 2026-10-01');
+window.FRAME_CONFIGURATOR_BUILD = "2026-10-06T13:24:00Z";
+console.info('[frame-configurator] build 2026-10-06T13:24:00Z, rate card 2026-10-01');
