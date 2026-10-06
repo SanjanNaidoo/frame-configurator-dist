@@ -2021,5 +2021,5 @@ if (!customElements.get(TAG)) customElements.define(TAG, FrameConfigurator);
 
 })();
 
-window.FRAME_CONFIGURATOR_BUILD = "2026-10-06T13:34:04Z";
-console.info('[frame-configurator] build 2026-10-06T13:34:04Z, rate card 2026-10-01');
+window.FRAME_CONFIGURATOR_BUILD = "2026-10-06T13:43:43Z";
+console.info('[frame-configurator] build 2026-10-06T13:43:43Z, rate card 2026-10-06');
