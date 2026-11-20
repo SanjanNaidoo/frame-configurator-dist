@@ -129,6 +129,10 @@ function panBy(pixels, aspect, zoom, centre, dxScreen, dyScreen, displayedWidth)
  * here is JSON: the File the customer picked cannot be, so only its name and
  * size are kept, enough to tell them it needs picking again.
  *
+ * It is only ever read for the order the page hands back (same orderId), never
+ * on its own: sessionStorage also outlives a refresh or a trip to another page,
+ * and those should start on the first screen.
+ *
  * Pure, and defensive: storage can be full, blocked, or hold something written
  * by an older version of this file, and none of that may break the page.
  */
@@ -137,7 +141,7 @@ const SESSION_KEY = 'picframing.configurator.v1';
 
 /** What is worth carrying across a rebuild. Anything else is derived or redrawn. */
 const PERSISTED = [
-  'lane', 'printedByUs', 'pixels', 'sizeId', 'artWidthMm', 'artHeightMm',
+  'orderId', 'lane', 'printedByUs', 'pixels', 'sizeId', 'artWidthMm', 'artHeightMm',
   'mouldingCode', 'matStyle', 'mat1Code', 'mat2Code', 'matBorderSidesMm',
   'bottomWeighted', 'rushOrder', 'glazingCode', 'mountingId', 'printPaperCode',
   'deliveryId', 'cropZoom', 'cropCenter', 'photoConsent', 'contact', 'contactOpen',
@@ -906,11 +910,19 @@ const onlineOnly = (list = []) => list.filter((x) => x.showOnline !== false);
  * scope goes too, which is how an upload could drop someone back at the first
  * screen.
  *
- * So the session is also written to sessionStorage, and read back when this
- * script starts with nothing. Module scope is still the fast path, and the one
- * that can hold the File itself; storage is the one that survives a reload.
+ * So the session is also written to sessionStorage, and kept in module scope,
+ * which is the copy that can hold the File itself.
+ *
+ * But neither is ever read on its own. Ian: refresh the page, or go Home and
+ * come back, and it opened halfway through the last order instead of on the
+ * first screen. Both copies outlive the visit, so on their own they can't tell
+ * a rebuild from a return. The page can: its code starts each visit holding
+ * nothing, and during a visit it hands the order back on the attribute that
+ * caused the rebuild. So an order is picked back up only when the page hands
+ * one back, and these copies are used only when they are that same order
+ * (orderId), for the File and anything newer than the page's copy.
  */
-let sessionState = null;
+let lastState = null;
 
 /*
  * sessionStorage, if this frame is allowed it. Inside Wix the element runs in a
@@ -929,8 +941,11 @@ const store = (() => {
   }
 })();
 
+const newOrderId = () => (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
 function freshState() {
   return {
+    orderId: newOrderId(),  // which order this is, so a rebuild picks up this one and no other
     lane: null,            // 'digital-upload' | 'own-print' | 'document'
     printedByUs: false,
     file: null,
@@ -1015,7 +1030,12 @@ function mountConfigurator(host, root) {
   let rates = null;
   let pendingLane = null;   // a lane asked for before the rate card arrived
 
-  const state = sessionState ?? (sessionState = unpackSession(loadSession(store), freshState()));
+  // Every element starts on a new order, on the first screen. If this one is a
+  // rebuild, the order it replaces waits in `previous` until the page says,
+  // by handing it back, that it is the one to carry on with.
+  const previous = lastState;
+  const state = freshState();
+  lastState = state;
 
   /**
    * Called after anything the customer chose, so a rebuild can pick it up.
@@ -1038,10 +1058,20 @@ function mountConfigurator(host, root) {
    * Pick the customer back up from a session the page handed us. Only when we
    * have nothing of our own: a live element must never be rewound by an older
    * copy of its own state.
+   *
+   * The page's copy decides which order; the newest copy of that same order
+   * supplies it. Module scope first, because it still holds the photo itself,
+   * then sessionStorage, then what the page sent.
    */
   function resumeFrom(session) {
-    if (!session || state.lane) return false;
-    Object.assign(state, unpackSession(session, freshState()));
+    if (!session?.lane || state.lane) return false;
+    const sameOrder = (copy) => Boolean(copy?.orderId) && copy.orderId === session.orderId;
+    if (sameOrder(previous)) {
+      Object.assign(state, previous, { submitting: false });
+    } else {
+      const stored = loadSession(store);
+      Object.assign(state, unpackSession(sameOrder(stored) ? stored : session, freshState()));
+    }
     saveSession(state, store);
     if (rates && state.lane) {
       openLane(state.lane, { scroll: false });
@@ -1340,6 +1370,10 @@ function mountConfigurator(host, root) {
     // down can't put this into a loop.
     if (!state.uploadUrls && !state.uploadAsked) {
       state.uploadAsked = true;
+      // Tell the page which order this is before asking it anything: its reply
+      // is what hands the order back if Wix rebuilds us, and a page that
+      // answers at once would otherwise hand back the order before this one.
+      remember();
       host.dispatchEvent(new CustomEvent('upload-url-request', { detail: { lane: lane.id } }));
     }
     $('config-title').textContent = lane.printedByUs ? 'Frame your photo' : `Frame your ${lane.label.toLowerCase()}`;
@@ -2276,5 +2310,5 @@ if (!customElements.get(TAG)) customElements.define(TAG, FrameConfigurator);
 
 })();
 
-window.FRAME_CONFIGURATOR_BUILD = "2026-11-16T15:19:17Z";
-console.info('[frame-configurator] build 2026-11-16T15:19:17Z, rate card 2026-10-06');
+window.FRAME_CONFIGURATOR_BUILD = "2026-11-20T17:40:15Z";
+console.info('[frame-configurator] build 2026-11-20T17:40:15Z, rate card 2026-10-06');
